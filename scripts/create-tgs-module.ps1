@@ -1,0 +1,1 @@
+# TGS frontend module generator
