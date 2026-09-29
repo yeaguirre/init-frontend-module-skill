@@ -1,28 +1,101 @@
----
-name: frontend-module-skill
-description: Genera la estructura base de módulos frontend siguiendo las convenciones de TGS. Úsalo cuando el usuario pida crear un módulo frontend de categoría SPAC o MEDI.
----
 
-# Frontend Module Skill
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$ProjectPath,
 
-Genera la estructura base de un módulo frontend TGS.
+    [Parameter(Mandatory=$true)]
+    [ValidateSet('SPAC','MEDI')]
+    [string]$Category,
 
-## Cuándo usarlo
+    [Parameter(Mandatory=$true)]
+    [string]$FolderName,
 
-Cuando el usuario pida crear un nuevo módulo frontend de categoría SPAC o MEDI, proporcionando nombre de módulo, carpeta padre y ruta del proyecto.
+    [Parameter(Mandatory=$true)]
+    [string]$ModuleName
+)
 
-## Cómo ejecutar
+# Validar que la ruta base existe
+if (-not (Test-Path $ProjectPath)) {
+    Write-Error "La ruta del proyecto no existe: $ProjectPath"
+    exit 1
+}
 
-Ejecuta el script `scripts/create-tgs-module.ps1` desde el directorio base de esta skill. **No ejecutes el script sin parámetros.**
+# Normalizar categoría
+$Category = $Category.ToUpper()
 
-Parámetros requeridos:
+# Crear carpeta padre si no existe
+$folderPath = Join-Path $ProjectPath $FolderName
+if (-not (Test-Path $folderPath)) {
+    New-Item -ItemType Directory -Path $folderPath -Force | Out-Null
+    Write-Host "Carpeta '$FolderName' creada en '$ProjectPath'" -ForegroundColor Green
+}
 
-- `-ProjectPath`: ruta base del proyecto (debe existir). Ejemplo: `C:\repos\etgs-ui\src\medi`
-- `-Category`: `SPAC` o `MEDI`
-- `-FolderName`: nombre de la carpeta padre. Ejemplo: `CalidadGas`
-- `-ModuleName`: nombre del nuevo módulo. Ejemplo: `CalculoCombustible`
+# Crear estructura del módulo
+$modDir = Join-Path $folderPath $ModuleName
+New-Item -ItemType Directory -Path $modDir -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $modDir 'components') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $modDir 'hooks') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $modDir 'components\buttons') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $modDir 'components\combos') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $modDir 'components\modals') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $modDir 'components\tables') -Force | Out-Null
 
-Ejemplo de invocación:
+# Generar ModuleName.jsx
+$jsxContent = @"
+import React from 'react';
+import StateProvider from './Context';
+import CommonHeader from '../../../components/CommonHeader';
+import moment from 'moment';
 
-```powershell
-.\scripts\create-tgs-module.ps1 -ProjectPath "C:\repos\etgs-ui\src\medi" -Category "MEDI" -FolderName "CalidadGas" -ModuleName "CalculoCombustible"
+const $ModuleName = (props) => {
+    const { roles, fechaMinima, fechaMaxima } = props.context;
+
+    return (
+        <StateProvider
+            roles={roles}
+            fechaMinima={moment(fechaMinima)}
+            fechaMaxima={moment(fechaMaxima)}
+            props={props}
+        >
+            <CommonHeader navPath={['$Category','$FolderName','$ModuleName']} />
+            Hello From $ModuleName
+        </StateProvider>
+    );
+};
+
+export default $ModuleName;
+"@
+Set-Content -Path (Join-Path $modDir "$ModuleName.jsx") -Value $jsxContent -Encoding UTF8
+
+# Generar Context.jsx
+$ctxContent = @"
+import React from 'react';
+
+export const StateContext = React.createContext();
+
+const StateProvider = ({children, roles, fechaMinima, fechaMaxima}) => {
+
+    return (
+        <StateContext.Provider value={{
+            // aquí tus exports
+        }}>
+            {children}
+        </StateContext.Provider>
+    );
+};
+
+export default StateProvider;
+"@
+Set-Content -Path (Join-Path $modDir 'Context.jsx') -Value $ctxContent -Encoding UTF8
+
+# Generar Service.js
+$svcContent = @"
+import axios from './../../../common/Axios';
+
+export default {
+    // aquí tus exports
+};
+"@
+Set-Content -Path (Join-Path $modDir 'Service.js') -Value $svcContent -Encoding UTF8
+
+Write-Host "Módulo '$ModuleName' creado en '$modDir'" -ForegroundColor Green
