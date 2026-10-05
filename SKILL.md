@@ -216,15 +216,27 @@ Creación e integración completa:
    -Roles @("ROLE_MEDI_VER_PROTONES", "ROLE_MEDI_EDITAR_PROTONES")
 ```
 
-Cuando se usa `-Integrate`, el script actualiza de forma idempotente:
+Cuando se usa `-Integrate`, el script intenta incorporar:
 
 - `src/common/constants/menu-module.jsx`;
 - `src/medi/Module.jsx` o `src/spac/Module.jsx`.
 
+La integracion tolera algunos registros existentes, pero la ejecucion completa
+no es idempotente: si el directorio del modulo ya existe, la validacion de
+colision aborta antes de integrar. Si ya existe `MenuKey`, el script conserva
+su valor actual sin comprobar que coincida con `MenuLabel`. Si la ruta ya esta
+asociada al mismo componente, conserva el `RouteProtected` existente sin
+reconciliar sus roles u otros valores. Los roles faltantes en el import se
+agregan; el import del componente se quita y se vuelve a insertar en el ancla
+correspondiente.
+
 `src/common/roles.js` se consulta para validar los roles, pero **nunca se escribe**.
 El script calcula un hash de `roles.js` antes y después de la ejecución. Si el
 hash cambia, aborta con error. Esto es una red de seguridad: si el archivo
-cambió, algo salió mal y hay que revisarlo manualmente.
+cambió, algo salió mal y hay que revisarlo manualmente. El generador crea
+primero la estructura, escribe el menu y luego actualiza `Module.jsx`; si una
+etapa posterior falla, no revierte los cambios anteriores. La skill debe
+informar claramente cualquier modificacion parcial.
 
 El script no debe duplicar claves de menú, imports ni rutas existentes. La
 entrada del menú debe ser la única línea nueva en `menu-module.jsx`; el resto
